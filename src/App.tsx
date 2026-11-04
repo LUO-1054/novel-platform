@@ -1,5 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import type { CSSProperties, ReactNode, RefObject, SetStateAction } from "react"
+import CharactersModule from "./Characters"
+import { DEFAULT_HOVER_FIELDS, HOVER_FIELDS, makeCharacter } from "./story"
+import type { Book, Chapter, HoverField, Scene } from "./story"
+import "./outline.css"
 
 type IconName = "feather" | "book" | "outline" | "search" | "settings" | "plus" | "chevron" | "back" | "more" | "file" | "check" | "export" | "panel" | "focus" | "sun" | "close" | "target" | "clock" | "leaf" | "users" | "arrow"
 function Icon({
@@ -122,13 +126,49 @@ function Icon({
   )
 }
 
-const firstText = `<p>九月的最后一天，林深收到了一封没有署名的信。</p><p>信封是旧式的牛皮纸，边角微微泛黄，像是被某个人珍藏了许多年。邮戳模糊，只依稀辨认出一个地名——青川。</p><p>那是他离开了整整十年的故乡。</p><p>窗外的雨下得很慢。水珠沿着玻璃蜿蜒而下，把对面楼房的灯火晕染成一片模糊的暖黄。他放下手里的咖啡，用裁纸刀小心地划开了信封。</p><p>里面只有一张薄薄的信纸，和一张老照片。</p><p>照片上是夏天的青川。河水穿过小镇，岸边的香樟树枝叶繁茂，树下站着三个少年。最左边的那个是他，穿着洗得发白的蓝色校服，笑得有些腼腆。</p><p>他已经很久没有这样笑过了。</p><p>林深翻过照片，背面有一行清秀的小字：</p><p>“如果你还记得，就在秋天回来吧。”</p><p>他认得这个笔迹。</p><p>时钟的秒针走过了一圈。他坐在原处，听着雨声，忽然觉得这些年奔忙的日子，像一列从未停靠的火车。而此刻，有人在很远的地方，轻轻扳动了道岔。</p><p>他拿起手机，打开了订票软件。</p>`
-type Chapter = {
-  id: number
+const OUTLINE_MODULES: {
+  key: "world" | "characters" | "events" | "structure"
+  no: string
+  en: string
   title: string
-  content: string
-  status: string
-}
+  desc: string
+  icon: IconName
+}[] = [
+  {
+    key: "world",
+    no: "01",
+    en: "WORLD",
+    title: "世界观",
+    desc: "时代、地域、规则与氛围，让故事有可以呼吸的空间。",
+    icon: "leaf",
+  },
+  {
+    key: "characters",
+    no: "02",
+    en: "CHARACTERS",
+    title: "人物",
+    desc: "主角、配角与他们之间的关系，决定故事的温度。",
+    icon: "users",
+  },
+  {
+    key: "events",
+    no: "03",
+    en: "EVENTS",
+    title: "事件",
+    desc: "把情节拆成可以落笔的瞬间，让故事一点点发生。",
+    icon: "file",
+  },
+  {
+    key: "structure",
+    no: "04",
+    en: "STRUCTURE",
+    title: "结构",
+    desc: "幕、章节节奏与线索收束，决定故事如何被读完。",
+    icon: "outline",
+  },
+]
+
+const firstText = `<p>九月的最后一天，林深收到了一封没有署名的信。</p><p>信封是旧式的牛皮纸，边角微微泛黄，像是被某个人珍藏了许多年。邮戳模糊，只依稀辨认出一个地名——青川。</p><p>那是他离开了整整十年的故乡。</p><p>窗外的雨下得很慢。水珠沿着玻璃蜿蜒而下，把对面楼房的灯火晕染成一片模糊的暖黄。他放下手里的咖啡，用裁纸刀小心地划开了信封。</p><p>里面只有一张薄薄的信纸，和一张老照片。</p><p>照片上是夏天的青川。河水穿过小镇，岸边的香樟树枝叶繁茂，树下站着三个少年。最左边的那个是他，穿着洗得发白的蓝色校服，笑得有些腼腆。</p><p>他已经很久没有这样笑过了。</p><p>林深翻过照片，背面有一行清秀的小字：</p><p>“如果你还记得，就在秋天回来吧。”</p><p>他认得这个笔迹。</p><p>时钟的秒针走过了一圈。他坐在原处，听着雨声，忽然觉得这些年奔忙的日子，像一列从未停靠的火车。而此刻，有人在很远的地方，轻轻扳动了道岔。</p><p>他拿起手机，打开了订票软件。</p>`
 const initialChapters: Chapter[] = [
   { id: 1, title: "一封远方的来信", content: firstText, status: "写作中" },
   {
@@ -174,32 +214,6 @@ const initialScenes = [
     color: "green",
   },
 ]
-type Scene = {
-  title: string
-  text: string
-  tag: string
-  color: string
-  chapterId?: number
-}
-type Book = {
-  id: string
-  name: string
-  genre: string
-  cover: string
-  volume: string
-  chapters: Chapter[]
-  scenes: Scene[]
-  active: number
-  notes: string
-  premise: string
-  theme: string
-  ending: string
-  characters: {
-    name: string
-    role: string
-    desc: string
-  }[]
-}
 const initialBooks: Book[] = [
   {
     id: "wind",
@@ -216,17 +230,102 @@ const initialBooks: Book[] = [
     theme: "关于故乡、错过与重逢。人可以走得很远，却总有一个地方值得回来。",
     ending: "林深决定留下来，和许知夏一起修复老街上的书店。",
     characters: [
-      {
+      makeCharacter({
         name: "林深",
-        role: "主角",
-        desc: "32岁，建筑师。沉默而细腻，离乡十年后，因一封来信重新面对过去。",
-      },
-      {
+        kind: "lead",
+        role: "主角 · 建筑师",
+        gender: "男",
+        age: "32",
+        height: "183cm",
+        birthday: "1992.09.30",
+        hobby: "摄影、在老街上散步",
+        birthplace: "青川",
+        occupation: "建筑师",
+        desc: "沉默而细腻，习惯把情绪收进细节里。离乡十年后，因一封没有署名的来信重新面对过去。",
+        coreEvent: "收到匿名来信，回到青川",
+        modules: [
+          {
+            id: "m-linshen-1",
+            title: "人物弧光",
+            content: "从逃避故乡，到主动留下，学会与人和解。",
+          },
+          {
+            id: "m-linshen-2",
+            title: "隐藏的秘密",
+            content: "十年前离开青川的真正原因，他一直没对任何人说起。",
+          },
+        ],
+      }),
+      makeCharacter({
         name: "许知夏",
-        role: "女主角",
-        desc: "31岁，书店店主。一直留在青川，守着旧日的约定和那棵香樟树。",
-      },
+        kind: "lead",
+        role: "女主角 · 书店店主",
+        gender: "女",
+        age: "31",
+        height: "168cm",
+        birthday: "1993.05.12",
+        hobby: "烘焙、收集旧书",
+        birthplace: "青川",
+        occupation: "书店店主",
+        desc: "温柔而坚定。一直留在青川，守着旧日的约定和那棵香樟树。",
+        coreEvent: "在香樟树下等一个人十年",
+      }),
+      makeCharacter({
+        name: "林望",
+        role: "父亲 · 木匠",
+        gender: "男",
+        age: "58",
+        height: "176cm",
+        birthday: "1966.03.08",
+        hobby: "下棋、修旧家具",
+        birthplace: "青川",
+        occupation: "木匠",
+        desc: "不善言辞的父亲，把关心都做进了家具的榫卯里。",
+        coreEvent: "与儿子十年未曾好好说话",
+      }),
+      makeCharacter({
+        name: "陈屿",
+        role: "挚友 · 医生",
+        gender: "男",
+        age: "33",
+        height: "180cm",
+        birthday: "1991.11.21",
+        hobby: "跑步、做饭",
+        birthplace: "青川",
+        occupation: "医生",
+        desc: "林深的发小，也是唯一知道当年那件事的人。",
+        coreEvent: "陪林深回乡",
+      }),
+      makeCharacter({
+        name: "苏晚",
+        role: "闺蜜 · 咖啡师",
+        gender: "女",
+        age: "30",
+        height: "165cm",
+        birthday: "1994.07.02",
+        hobby: "旅行、拍照",
+        birthplace: "青川",
+        occupation: "咖啡师",
+        desc: "许知夏的闺蜜，性格爽朗，总在关键时刻推她一把。",
+        coreEvent: "鼓励许知夏重新开店",
+      }),
     ],
+    relations: [
+      { id: "rel-w1", from: "林深", to: "周素", label: "母子" },
+      { id: "rel-w2", from: "林深", to: "林望", label: "父子" },
+      { id: "rel-w3", from: "林深", to: "许知夏", label: "青梅竹马" },
+      { id: "rel-w4", from: "林深", to: "陈屿", label: "挚友" },
+      { id: "rel-w5", from: "周素", to: "林望", label: "夫妻" },
+      { id: "rel-w6", from: "许知夏", to: "苏晚", label: "闺蜜" },
+    ],
+    graph: {
+      林深: { x: 396, y: 255 },
+      许知夏: { x: 610, y: 150 },
+      周素: { x: 200, y: 150 },
+      林望: { x: 188, y: 380 },
+      陈屿: { x: 610, y: 382 },
+      苏晚: { x: 800, y: 255 },
+    },
   },
   {
     id: "night",
@@ -270,17 +369,41 @@ const initialBooks: Book[] = [
     theme: "真相与谎言，每个人都有不能回头的理由。",
     ending: "雾散之时，顾远发现委托人一直就在船上。",
     characters: [
-      {
+      makeCharacter({
         name: "顾远",
-        role: "主角",
-        desc: "独立调查员。习惯观察细节，不轻易相信任何人的证词。",
-      },
-      {
+        kind: "lead",
+        role: "主角 · 独立调查员",
+        gender: "男",
+        age: "35",
+        height: "181cm",
+        birthday: "1989.12.04",
+        hobby: "观察、收集旧报纸",
+        birthplace: "雾港",
+        occupation: "独立调查员",
+        desc: "习惯观察细节，不轻易相信任何人的证词。",
+        coreEvent: "登上最后一班渡轮",
+      }),
+      makeCharacter({
         name: "沈雾",
-        role: "旅客",
+        role: "旅客 · 摄影师",
+        gender: "女",
+        age: "29",
+        height: "167cm",
+        birthday: "1995.02.18",
+        hobby: "摄影、写日记",
+        birthplace: "雾港",
+        occupation: "摄影师",
         desc: "携带旧日记登船的女摄影师，对这条航线异常熟悉。",
-      },
+        coreEvent: "带着被撕去末页的日记登船",
+      }),
     ],
+    relations: [
+      { id: "rel-n1", from: "顾远", to: "沈雾", label: "调查对象" },
+    ],
+    graph: {
+      顾远: { x: 380, y: 240 },
+      沈雾: { x: 680, y: 240 },
+    },
   },
   {
     id: "island",
@@ -311,12 +434,25 @@ const initialBooks: Book[] = [
     theme: "探索未知，也是在寻找属于自己的方向。",
     ending: "第七座岛屿不是终点，而是一段新旅程的起点。",
     characters: [
-      {
+      makeCharacter({
         name: "阿澄",
-        role: "主角",
+        kind: "lead",
+        role: "主角 · 制图师",
+        gender: "女",
+        age: "22",
+        height: "162cm",
+        birthday: "2002.06.15",
+        hobby: "画海图、收集贝壳",
+        birthplace: "潮汐镇",
+        occupation: "制图师",
         desc: "年轻的制图师。热爱海洋，相信每一条未知的航线都值得被记录。",
-      },
+        coreEvent: "发现祖父的罗盘指向海图之外",
+      }),
     ],
+    relations: [],
+    graph: {
+      阿澄: { x: 430, y: 250 },
+    },
   },
 ]
 const plain = (html: string) =>
@@ -367,10 +503,12 @@ function BookSwitcher({
   books,
   selectedId,
   onSelect,
+  onOpenOutline,
 }: {
   books: Book[]
   selectedId: string
   onSelect: (id: string) => void
+  onOpenOutline: () => void
 }) {
   const [open, setOpen] = useState(false)
   const container = useRef<HTMLDivElement>(null)
@@ -392,36 +530,44 @@ function BookSwitcher({
   }, [open])
   return (
     <div className="book-switcher" ref={container}>
-      <button
-        className={`project-card ${open ? "is-open" : ""}`}
-        aria-label="选择书籍"
-        aria-expanded={open}
-        aria-haspopup="listbox"
-        onClick={() => setOpen(!open)}
-      >
-        <div className="book-cover">
-          <span>
-            {selected.cover.split("").map((c, i) => (
-              <span key={i}>
-                {c}
-                <br />
-              </span>
-            ))}
-          </span>
-          <i>墨间 · 原创作品</i>
-        </div>
-        <div className="project-info">
-          <strong>{selected.name}</strong>
-          <span>
-            长篇小说 <b>·</b> {selected.genre}
-          </span>
-          <small>
-            <i />
-            连载中
-          </small>
-        </div>
-        <Icon name="chevron" size={15} className={open ? "rotate" : ""} />
-      </button>
+      <div className={`project-card ${open ? "is-open" : ""}`}>
+        <button
+          className="project-main"
+          aria-label="打开故事大纲"
+          onClick={onOpenOutline}
+        >
+          <div className="book-cover">
+            <span>
+              {selected.cover.split("").map((c, i) => (
+                <span key={i}>
+                  {c}
+                  <br />
+                </span>
+              ))}
+            </span>
+            <i>墨间 · 原创作品</i>
+          </div>
+          <div className="project-info">
+            <strong>{selected.name}</strong>
+            <span>
+              长篇小说 <b>·</b> {selected.genre}
+            </span>
+            <small>
+              <i />
+              连载中
+            </small>
+          </div>
+        </button>
+        <button
+          className="project-caret"
+          aria-label="切换书籍"
+          aria-expanded={open}
+          aria-haspopup="listbox"
+          onClick={() => setOpen(!open)}
+        >
+          <Icon name="chevron" size={15} className={open ? "rotate" : ""} />
+        </button>
+      </div>
       {open && (
         <div className="book-menu" role="listbox" aria-label="选择书籍">
           <div className="book-menu-heading">
@@ -491,6 +637,11 @@ export default function App() {
   const setNotes = (value: string) => setBookField("notes", value)
   const setProjectName = (value: string) => setBookField("name", value)
   const [view, setView] = useState<"writing" | "outline">("writing")
+  const [outlineSection, setOutlineSection] = useState<
+    "world" | "characters" | "events" | "structure" | null
+  >(null)
+  const [hoverFields, setHoverFields] =
+    useState<HoverField[]>(DEFAULT_HOVER_FIELDS)
   const [rightTab, setRightTab] = useState("大纲")
   const [rightPanels, setRightPanels] = useState(() => ({
     writing: window.innerWidth > 900,
@@ -653,7 +804,10 @@ export default function App() {
             <button
               aria-label="大纲"
               className={view === "outline" ? "rail-item active" : "rail-item"}
-              onClick={() => setView("outline")}
+              onClick={() => {
+                setView("outline")
+                setOutlineSection(null)
+              }}
             >
               <Icon name="outline" size={22} />
               <span>大纲</span>
@@ -704,6 +858,11 @@ export default function App() {
             books={books}
             selectedId={bookId}
             onSelect={switchBook}
+            onOpenOutline={() => {
+              setView("outline")
+              setOutlineSection(null)
+              setRightPanels((p) => ({ ...p, outline: true }))
+            }}
           />
           <div className="chapter-heading">
             <span>
@@ -803,14 +962,31 @@ export default function App() {
       <main className="workspace">
         <header className="topbar">
           <div className="breadcrumbs">
-            <span>{projectName}</span>
+            <button
+              className="crumb-book"
+              onClick={() => {
+                setView("outline")
+                setOutlineSection(null)
+                setRightPanels((p) => ({ ...p, outline: true }))
+              }}
+            >
+              {projectName}
+            </button>
             <Icon name="chevron" size={12} />
             <span>{book.volume}</span>
             <Icon name="chevron" size={12} />
             <strong>
               {view === "writing"
                 ? `第${chapters.findIndex((c) => c.id === active) + 1}章`
-                : "故事大纲"}
+                : outlineSection === "characters"
+                  ? "人物"
+                  : outlineSection === "world"
+                    ? "世界观"
+                    : outlineSection === "events"
+                      ? "事件"
+                      : outlineSection === "structure"
+                        ? "结构"
+                        : "故事大纲"}
             </strong>
           </div>
           <div className="header-actions">
@@ -987,97 +1163,204 @@ export default function App() {
                 </article>
               </div>
             ) : (
-              <div className="outline-workspace">
-                <div className="outline-eyebrow">
-                  THE STORY BEHIND YOUR STORY
-                </div>
-                <h1>每个好故事，都有迹可循。</h1>
-                <p className="outline-intro">
-                  把灵光一现，慢慢编织成一个完整的世界。
-                </p>
-                <div className="outline-section-title">
-                  <h2>{book.volume}</h2>
-                  <span>{scenes.length} 个情节点</span>
-                  <button onClick={addScene}>
-                    <Icon name="plus" size={16} />
-                    添加情节点
-                  </button>
-                </div>
-                <div className="story-board">
-                  {scenes.map((scene, i) => (
-                    <div
-                      className={`story-card ${scene.color} ${
-                        currentSceneIndex === i ? "is-selected" : ""
-                      }`}
-                      key={`${book.id}-${i}`}
-                      onFocus={() => setSelectedScene(i)}
-                    >
-                      <div className="story-number">
-                        0{i + 1}
-                        <span>{scene.tag}</span>
-                      </div>
-                      <input
-                        aria-label={`情节点${i + 1}标题`}
-                        value={scene.title}
-                        onChange={(e) =>
-                          setScenes((s) =>
-                            s.map((v, j) =>
-                              i === j ? { ...v, title: e.target.value } : v,
-                            ),
-                          )
-                        }
-                      />
-                      <textarea
-                        aria-label={`情节点${i + 1}内容`}
-                        placeholder="记录这个情节点的故事……"
-                        value={scene.text}
-                        onChange={(e) =>
-                          setScenes((s) =>
-                            s.map((v, j) =>
-                              i === j ? { ...v, text: e.target.value } : v,
-                            ),
-                          )
-                        }
-                      />
-                      <div className="story-card-bottom">
-                        <span>
-                          {scene.chapterId
-                            ? chapters.find((c) => c.id === scene.chapterId)
-                                ?.title || "未关联章节"
-                            : "未关联章节"}
-                        </span>
-                        <button
-                          className="scene-detail-button"
-                          aria-label={`查看情节点${i + 1}详情`}
-                          onClick={() => {
-                            setSelectedScene(i)
-                            setOutlineTab("情节详情")
-                            setRightOpen(true)
-                          }}
-                        >
-                          详情
-                          <Icon name="chevron" size={12} />
-                        </button>
-                        <button
-                          aria-label="删除情节点"
-                          onClick={() =>
-                            setScenes((s) => s.filter((_, j) => i !== j))
-                          }
-                        >
-                          <Icon name="close" size={14} />
-                        </button>
-                      </div>
+              <div
+                className={`outline-workspace ${
+                  outlineSection ? "is-section" : ""
+                }`}
+              >
+                {outlineSection === null && (
+                  <div className="outline-overview">
+                    <div className="outline-eyebrow">
+                      STORY OUTLINE · 故事大纲
                     </div>
-                  ))}
-                </div>
-                <div className="outline-note">
-                  <Icon name="leaf" />
-                  <p>
-                    不必一开始就想好结局。
-                    <br />
-                    <span>给故事一点空间，也给灵感一点时间。</span>
-                  </p>
-                </div>
+                    <h1 className="outline-title">故事大纲</h1>
+                    <p className="outline-intro">
+                      先搭好骨架，再让故事生长。四个模块，随时可以回来补充。
+                    </p>
+                    <div className="outline-modules">
+                      {OUTLINE_MODULES.map((m) => {
+                        const meta =
+                          m.key === "characters"
+                            ? `${book.characters.length} 位人物 · ${book.relations.length} 条关系`
+                            : m.key === "events"
+                              ? `${scenes.length} 个情节点`
+                              : m.key === "structure"
+                                ? `${chapters.length} 章 · 3 幕`
+                                : `${book.volume}`
+                        return (
+                          <button
+                            key={m.key}
+                            className={`outline-module ${
+                              m.key === "characters" ? "is-focus" : ""
+                            }`}
+                            onClick={() => setOutlineSection(m.key)}
+                          >
+                            <div className="om-top">
+                              <span className="om-no">{m.no}</span>
+                              <span className="om-en">{m.en}</span>
+                              {m.key === "characters" && (
+                                <span className="om-badge">正在编辑</span>
+                              )}
+                            </div>
+                            <span className="om-icon">
+                              <Icon name={m.icon} size={18} />
+                            </span>
+                            <h3>{m.title}</h3>
+                            <p>{m.desc}</p>
+                            <div className="om-foot">
+                              <span>{meta}</span>
+                              <Icon name="arrow" size={16} />
+                            </div>
+                          </button>
+                        )
+                      })}
+                    </div>
+                    <div className="outline-tip">
+                      <Icon name="leaf" size={18} />
+                      <p>
+                        不必一次写完。
+                        <br />
+                        <span>
+                          先记下能记住的部分，剩下的交给写作时的自己。
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {outlineSection === "characters" && (
+                  <CharactersModule
+                    book={book}
+                    hoverFields={hoverFields}
+                    onUpdate={(patch) =>
+                      setBooks((bs) =>
+                        bs.map((b) =>
+                          b.id === bookId ? { ...b, ...patch } : b,
+                        ),
+                      )
+                    }
+                  />
+                )}
+
+                {(outlineSection === "world" ||
+                  outlineSection === "structure") && (
+                  <div className="outline-placeholder">
+                    <span className="placeholder-no">
+                      {outlineSection === "world" ? "01" : "04"}
+                    </span>
+                    <h1>{outlineSection === "world" ? "世界观" : "结构"}</h1>
+                    <p>
+                      {outlineSection === "world"
+                        ? "时代、地域、规则与氛围，会让故事有可以呼吸的空间。"
+                        : "三幕、章节节奏与线索收束，决定故事如何被读完。"}
+                      <br />
+                      这个模块正在设计中，先把人物写好，故事会自己找上门来。
+                    </p>
+                    <button
+                      className="ghost-button"
+                      onClick={() => setOutlineSection(null)}
+                    >
+                      <Icon name="back" size={15} />
+                      返回大纲
+                    </button>
+                  </div>
+                )}
+
+                {outlineSection === "events" && (
+                  <>
+                    <div className="outline-eyebrow">PLOT &amp; EVENTS</div>
+                    <h1 className="outline-title">事件</h1>
+                    <p className="outline-intro">
+                      把故事拆成一个个可以落笔的瞬间。
+                    </p>
+                    <div className="outline-section-title">
+                      <h2>{book.volume}</h2>
+                      <span>{scenes.length} 个情节点</span>
+                      <button onClick={addScene}>
+                        <Icon name="plus" size={16} />
+                        添加情节点
+                      </button>
+                    </div>
+                    <div className="story-board">
+                      {scenes.map((scene, i) => (
+                        <div
+                          className={`story-card ${scene.color} ${
+                            currentSceneIndex === i ? "is-selected" : ""
+                          }`}
+                          key={`${book.id}-${i}`}
+                          onFocus={() => setSelectedScene(i)}
+                        >
+                          <div className="story-number">
+                            0{i + 1}
+                            <span>{scene.tag}</span>
+                          </div>
+                          <input
+                            aria-label={`情节点${i + 1}标题`}
+                            value={scene.title}
+                            onChange={(e) =>
+                              setScenes((s) =>
+                                s.map((v, j) =>
+                                  i === j
+                                    ? { ...v, title: e.target.value }
+                                    : v,
+                                ),
+                              )
+                            }
+                          />
+                          <textarea
+                            aria-label={`情节点${i + 1}内容`}
+                            placeholder="记录这个情节点的故事……"
+                            value={scene.text}
+                            onChange={(e) =>
+                              setScenes((s) =>
+                                s.map((v, j) =>
+                                  i === j ? { ...v, text: e.target.value } : v,
+                                ),
+                              )
+                            }
+                          />
+                          <div className="story-card-bottom">
+                            <span>
+                              {scene.chapterId
+                                ? chapters.find(
+                                    (c) => c.id === scene.chapterId,
+                                  )?.title || "未关联章节"
+                                : "未关联章节"}
+                            </span>
+                            <button
+                              className="scene-detail-button"
+                              aria-label={`查看情节点${i + 1}详情`}
+                              onClick={() => {
+                                setSelectedScene(i)
+                                setOutlineTab("情节详情")
+                                setRightOpen(true)
+                              }}
+                            >
+                              详情
+                              <Icon name="chevron" size={12} />
+                            </button>
+                            <button
+                              aria-label="删除情节点"
+                              onClick={() =>
+                                setScenes((s) => s.filter((_, j) => i !== j))
+                              }
+                            >
+                              <Icon name="close" size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="outline-note">
+                      <Icon name="leaf" />
+                      <p>
+                        不必一开始就想好结局。
+                        <br />
+                        <span>给故事一点空间，也给灵感一点时间。</span>
+                      </p>
+                    </div>
+                  </>
+                )}
               </div>
             )}
             <footer className="editor-footer">
@@ -1235,7 +1518,10 @@ export default function App() {
               </div>
             </aside>
           )}
-          {rightOpen && !focus && view === "outline" && (
+          {rightOpen &&
+            !focus &&
+            view === "outline" &&
+            outlineSection === "events" && (
             <aside
               className="inspiration-panel outline-inspector"
               aria-label="大纲设置面板"
@@ -1562,6 +1848,35 @@ export default function App() {
                     </button>
                   ))}
                 </div>
+                <div className="setting-block">
+                  <span className="setting-title">悬浮卡显示字段</span>
+                  <p className="setting-hint">
+                    选择鼠标悬浮关系网人物时，简略档案中展示的信息。
+                  </p>
+                  <div className="hover-field-list">
+                    {HOVER_FIELDS.map((field) => {
+                      const on = hoverFields.includes(field.key)
+                      return (
+                        <button
+                          key={field.key}
+                          className={`hover-field ${on ? "on" : ""}`}
+                          role="switch"
+                          aria-checked={on}
+                          onClick={() =>
+                            setHoverFields((hs) =>
+                              on
+                                ? hs.filter((k) => k !== field.key)
+                                : [...hs, field.key],
+                            )
+                          }
+                        >
+                          <span>{field.label}</span>
+                          <i className="switch-track" />
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
                 <p className="session-notice">
                   当前为体验工作台，内容仅在本次会话中保留。关闭或刷新前，请导出作品。
                 </p>
@@ -1569,10 +1884,10 @@ export default function App() {
                   className="primary-button"
                   onClick={() => {
                     setModal(null)
-                    setToast("写作目标已更新")
+                    setToast("设置已保存")
                   }}
                 >
-                  开始今天的创作
+                  保存设置
                   <Icon name="arrow" size={16} />
                 </button>
               </>
