@@ -1,0 +1,10 @@
+{
+  "description": "A writing platform for authors to draft their work and organize ideas with structured outlines.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
