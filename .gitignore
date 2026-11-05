@@ -21,3 +21,6 @@ logs/
 /.opencode-skills/
 shots/
 scripts/
+
+# 本地离线单文件构建产物
+*-离线版.html
