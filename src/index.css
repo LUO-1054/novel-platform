@@ -5,14 +5,14 @@
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url('/fonts/noto-sans-sc.ttf') format('truetype');
+  src: url('./assets/fonts/noto-sans-sc.ttf') format('truetype');
 }
 @font-face {
   font-family: 'Noto Serif SC';
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url('/fonts/noto-serif-sc.ttf') format('truetype');
+  src: url('./assets/fonts/noto-serif-sc.ttf') format('truetype');
 }
 
 @layer base {
